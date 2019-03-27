@@ -44,6 +44,8 @@ class CLI
 
   def controller(arg)
     # Process user response from main menu
+
+    # Fetch todos for the user everytime to be sure our list is up to date
     fetch_tasks()
 
     if arg == :view
@@ -66,18 +68,19 @@ class CLI
       @tasks = JSON.parse(res)["data"]
     rescue RestClient::UnprocessableEntity => e
       e.response
-
     end
   end
 
   def adds_task
     new_task = @prompt.ask("Add new todo: ")
     new_priority = prompt_priority()
-    res = RestClient.post("http://localhost:3000/api/v1/todo", {task: new_task, priority: new_priority})
-    #res = RestClient.post("http://localhost:3000/api/v1/todo", {data: {task: new_task, priority: new_priority}, user_id: @user["id"]})
+    #res = RestClient.post("http://localhost:3000/api/v1/todo/#{@user["id"]}", {task: new_task, priority: new_priority})
+    res = RestClient.post("http://localhost:3000/api/v1/todo", {data: {task: new_task, priority: new_priority}, user_id: @user["id"]})
+    ask_choice()
   end
 
   def delete_task
+    # Displays tasks and user can select which one to delete
     fetch_tasks()
     if @tasks.size > 0
       selected = @prompt.select("Select the completed task: ", @tasks.each_with_index.map {|item, index|  "#{index + 1}. #{item["task"]}"})
@@ -88,21 +91,27 @@ class CLI
   end
 
   def parse_items(arg)
+    # Receives 
     task_id = @tasks.select {|task| task["task"] == arg.split(". ")[1]}.first["id"]
     res = RestClient.delete("http://localhost:3000/api/v1/destroy_selected/user_id=#{@user["id"]}&todo_id=#{task_id}")
-    puts res
+    ask_choice()
   end
 
   def display_response(res)
     # Process and display API response
-    if res.code != 422
-      response = JSON.parse(res)["data"]
-      response.each_with_index do |task, index|
-        puts "#{index + 1}. #{task["task"]}."
+    begin
+      if res.length
+        res.each_with_index do |task, index|
+          puts "#{index + 1}. #{task["task"]}."
+        end
+        ask_choice()
+      else
+        no_task()
       end
-    else
+    rescue
       no_task()
     end
+    
 
   end
 

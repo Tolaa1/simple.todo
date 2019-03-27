@@ -3,7 +3,7 @@ require "rest-client"
 require "json"
 require "tty"
 require "colorize"
-
+require "terminal-table"
 
 class CLI
   def initialize
@@ -11,6 +11,10 @@ class CLI
     @prompt = TTY::Prompt.new
     @tasks = []
   end
+
+  ####################
+  # General
+  ####################
 
   def prompt_user
     # Prompts the user for their username
@@ -30,6 +34,10 @@ class CLI
     puts "Hi #{@user["name"]}, welcome to TodoApp 2000!".light_blue
   end
 
+  def exit_message
+    puts "Bye #{@user["name"]}, have a nice day!".light_blue
+  end
+
   def ask_choice
     # Prompts the user the main menu
     choices = [
@@ -37,7 +45,7 @@ class CLI
       {name: "Add todo", value: :add},
       {name: "Complete todo", value: :delete},
       {name: "Edit todo", value: :edit},
-      {name: "Exit", value: :quit}
+      {name: "Exit", value: :quit},
     ]
     controller(@prompt.select("What are you up to?", choices.each { |item| item[:name] }))
   end
@@ -57,9 +65,35 @@ class CLI
     elsif arg == :edit
       puts "edit"
     elsif arg == :quit
-      puts "quit"
+      exit_message()
     end
   end
+
+  def danger(arg)
+    if arg == "High"
+      arg.red
+    elsif arg == "Normal"
+      arg.light_magenta
+    elsif arg == "Low"
+      arg.green
+    end
+  end
+
+  def start
+    # Main controller
+    prompt_user()
+    welcome()
+    ask_choice()
+  end
+
+  def no_task
+    puts "You have no tasks.".red
+    ask_choice()
+  end
+
+  ####################
+  # View
+  ####################
 
   def fetch_tasks
     # Asks for every task that is related to the current user
@@ -71,38 +105,12 @@ class CLI
     end
   end
 
-  def adds_task
-    new_task = @prompt.ask("Add new todo: ")
-    new_priority = prompt_priority()
-    #res = RestClient.post("http://localhost:3000/api/v1/todo/#{@user["id"]}", {task: new_task, priority: new_priority})
-    res = RestClient.post("http://localhost:3000/api/v1/todo", {data: {task: new_task, priority: new_priority}, user_id: @user["id"]})
-    ask_choice()
-  end
-
-  def delete_task
-    # Displays tasks and user can select which one to delete
-    fetch_tasks()
-    if @tasks.size > 0
-      selected = @prompt.select("Select the completed task: ", @tasks.each_with_index.map {|item, index|  "#{index + 1}. #{item["task"]}"})
-      parse_items(selected)
-    else
-      no_task()
-    end
-  end
-
-  def parse_items(arg)
-    # Receives 
-    task_id = @tasks.select {|task| task["task"] == arg.split(". ")[1]}.first["id"]
-    res = RestClient.delete("http://localhost:3000/api/v1/destroy_selected/user_id=#{@user["id"]}&todo_id=#{task_id}")
-    ask_choice()
-  end
-
   def display_response(res)
     # Process and display API response
     begin
       if res.length
         res.each_with_index do |task, index|
-          puts "#{index + 1}. #{task["task"]}."
+          puts "#{index + 1}. #{task["task"]} - Priority: #{danger(task["priority"])}"
         end
         ask_choice()
       else
@@ -111,29 +119,51 @@ class CLI
     rescue
       no_task()
     end
-    
+  end
 
+  ####################
+  # Add
+  ####################
+
+  def adds_task
+    new_task = @prompt.ask("Add new todo: ")
+    new_priority = prompt_priority()
+    res = RestClient.post("http://localhost:3000/api/v1/todo", {data: {task: new_task, priority: new_priority}, user_id: @user["id"]})
+    ask_choice()
   end
 
   def prompt_priority
     choices = [
-      {name: "Low", value: 1},
-      {name: "Normal", value: 2},
-      {name: "High", value: 3}
+      {name: "Low", value: "Low"},
+      {name: "Normal", value: "Normal"},
+      {name: "High", value: "High"},
     ]
     @prompt.select("Select the priority", choices.each { |item| item[:name] })
   end
 
-  def no_task
-    puts "You have no tasks.".red
-    ask_choice()
+  ####################
+  # Update
+  ####################
+
+  ####################
+  # Delete
+  ####################
+
+  def delete_task
+    # Displays tasks and user can select which one to delete
+    fetch_tasks()
+    if @tasks.size > 0
+      selected = @prompt.select("Select the completed task: ", @tasks.each_with_index.map { |item, index| "#{index + 1}. #{item["task"]} - Priority: #{danger(item["priority"])}" })
+      parse_items(selected)
+    else
+      no_task()
+    end
   end
 
-
-  def start
-    # Main controller
-    prompt_user()
-    welcome()
+  def parse_items(arg)
+    # Receives user_id and todo_id and sends a delete request
+    task_id = @tasks.select { |task| task["task"] == arg.split(". ")[1].split(" - ")[0] }.first["id"]
+    res = RestClient.delete("http://localhost:3000/api/v1/destroy_selected/user_id=#{@user["id"]}&todo_id=#{task_id}")
     ask_choice()
   end
 end

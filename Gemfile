@@ -10,3 +10,4 @@ gem 'require_all'
 gem 'pry'
 gem 'tty'
 gem "colorize"
+gem "terminal-table"

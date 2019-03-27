@@ -2,6 +2,7 @@ require "tty-prompt"
 require "rest-client"
 require "json"
 require "tty"
+require "colorize"
 
 
 class CLI
@@ -26,7 +27,7 @@ class CLI
 
   def welcome
     # Greet user
-    puts "Hi #{@user["name"]}, welcome to TodoApp 2000!"
+    puts "Hi #{@user["name"]}, welcome to TodoApp 2000!".light_blue
   end
 
   def ask_choice
@@ -36,7 +37,7 @@ class CLI
       {name: "Add todo", value: :add},
       {name: "Complete todo", value: :delete},
       {name: "Edit todo", value: :edit},
-      {name: "Exit", value: :quit},
+      {name: "Exit", value: :quit}
     ]
     controller(@prompt.select("What are you up to?", choices.each { |item| item[:name] }))
   end
@@ -60,8 +61,13 @@ class CLI
 
   def fetch_tasks
     # Asks for every task that is related to the current user
-    res = RestClient.post("http://localhost:3000/api/v1/matches/", {id: @user["id"]})
-    @tasks = JSON.parse(res)["data"]
+    begin
+      res = RestClient.post("http://localhost:3000/api/v1/matches/", {id: @user["id"]})
+      @tasks = JSON.parse(res)["data"]
+    rescue RestClient::UnprocessableEntity => e
+      e.response
+
+    end
   end
 
   def adds_task
@@ -73,23 +79,32 @@ class CLI
 
   def delete_task
     fetch_tasks()
-    selected = @prompt.select("Select the completed task: ", @tasks.each_with_index.map {|item, index|  "#{index + 1}. #{item["task"]}"})
-    parse_items(selected)
+    if @tasks.size > 0
+      selected = @prompt.select("Select the completed task: ", @tasks.each_with_index.map {|item, index|  "#{index + 1}. #{item["task"]}"})
+      parse_items(selected)
+    else
+      no_task()
+    end
   end
 
   def parse_items(arg)
     task_id = @tasks.select {|task| task["task"] == arg.split(". ")[1]}.first["id"]
-    RestClient.delete("http://localhost:3000/api/v1/destroy_selected/user_id=#{@user["id"]}&todo_id=#{task_id}")
+    res = RestClient.delete("http://localhost:3000/api/v1/destroy_selected/user_id=#{@user["id"]}&todo_id=#{task_id}")
+    puts res
   end
 
   def display_response(res)
     # Process and display API response
-    response = JSON.parse(res)["data"]
-    response.each_with_index do |task, index|
-      puts "#{index + 1}. #{task["task"]}."
+    if res.code != 422
+      response = JSON.parse(res)["data"]
+      response.each_with_index do |task, index|
+        puts "#{index + 1}. #{task["task"]}."
+      end
+    else
+      no_task()
     end
-  end
 
+  end
 
   def prompt_priority
     choices = [
@@ -98,6 +113,11 @@ class CLI
       {name: "High", value: 3}
     ]
     @prompt.select("Select the priority", choices.each { |item| item[:name] })
+  end
+
+  def no_task
+    puts "You have no tasks.".red
+    ask_choice()
   end
 
 

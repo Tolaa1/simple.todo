@@ -63,7 +63,7 @@ class CLI
     elsif arg == :delete
       delete_task()
     elsif arg == :edit
-      puts "edit"
+      update_task()
     elsif arg == :quit
       exit_message()
     end
@@ -73,7 +73,7 @@ class CLI
     if arg == "High"
       arg.red
     elsif arg == "Normal"
-      arg.light_magenta
+      arg.yellow
     elsif arg == "Low"
       arg.green
     end
@@ -101,7 +101,8 @@ class CLI
       res = RestClient.post("http://localhost:3000/api/v1/matches/", {id: @user["id"]})
       @tasks = JSON.parse(res)["data"]
     rescue RestClient::UnprocessableEntity => e
-      e.response
+      puts e.response
+      @tasks = []
     end
   end
 
@@ -145,6 +146,24 @@ class CLI
   # Update
   ####################
 
+  def update_task
+    fetch_tasks()
+    if @tasks.size > 0
+      selected = @prompt.select("Select a task to edit: ", @tasks.each_with_index.map { |item, index| "#{index + 1}. #{item["task"]} - Priority: #{danger(item["priority"])}" })
+      parse_to_update(selected)
+    else
+      no_task()
+    end
+  end
+
+  def parse_to_update(arg)
+    new_task = @prompt.ask("Edit task: ")
+    task_id = @tasks.select { |task| task["task"] == arg.split(". ")[1].split(" - ")[0] }.first["id"]
+    res = RestClient.put("http://localhost:3000/api/v1/todo/#{task_id}", {data: {task: new_task, priority: prompt_priority()}})
+    ask_choice()
+  end
+
+
   ####################
   # Delete
   ####################
@@ -160,10 +179,10 @@ class CLI
     end
   end
 
-  def parse_items(arg)
+  def parse_to_delete(arg)
     # Receives user_id and todo_id and sends a delete request
     task_id = @tasks.select { |task| task["task"] == arg.split(". ")[1].split(" - ")[0] }.first["id"]
-    res = RestClient.delete("http://localhost:3000/api/v1/destroy_selected/user_id=#{@user["id"]}&todo_id=#{task_id}")
+    RestClient.delete("http://localhost:3000/api/v1/destroy_selected/user_id=#{@user["id"]}&todo_id=#{task_id}")
     ask_choice()
   end
 end

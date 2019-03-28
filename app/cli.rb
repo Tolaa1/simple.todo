@@ -35,6 +35,7 @@ class CLI
   end
 
   def exit_message
+    # Exit message
     puts "Bye #{@user["name"]}, have a nice day!".light_blue
   end
 
@@ -70,6 +71,7 @@ class CLI
   end
 
   def danger(arg)
+    # Make the priority pretty
     if arg == "High"
       arg.red
     elsif arg == "Normal"
@@ -87,6 +89,7 @@ class CLI
   end
 
   def no_task
+    # Displays no task message and prompts for new command
     puts "You have no tasks.".red
     ask_choice()
   end
@@ -101,7 +104,6 @@ class CLI
       res = RestClient.post("http://localhost:3000/api/v1/matches/", {id: @user["id"]})
       @tasks = JSON.parse(res)["data"]
     rescue RestClient::UnprocessableEntity => e
-      puts e.response
       @tasks = []
     end
   end
@@ -173,7 +175,7 @@ class CLI
     fetch_tasks()
     if @tasks.size > 0
       selected = @prompt.select("Select the completed task: ", @tasks.each_with_index.map { |item, index| "#{index + 1}. #{item["task"]} - Priority: #{danger(item["priority"])}" })
-      parse_items(selected)
+      parse_to_delete(selected)
     else
       no_task()
     end

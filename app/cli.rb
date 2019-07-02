@@ -4,13 +4,37 @@ require "json"
 require "tty"
 require "colorize"
 require "terminal-table"
+#require "tty-spinner"
+require_relative "styling"
+
+# (@PASTEL.black("You usedwith ") + @PASTEL.bright_white.on_bright_red.bold("thankyou"))
 
 class CLI
+  extend Styling
+
   def initialize
     # Init app
     @prompt = TTY::Prompt.new
     @tasks = []
+    @pastel = Pastel.new
   end
+
+  def color
+    puts @pastel.black("You usedwith ") + @pastel.bright_white.on_bright_yellow.bold("thankyou")
+  end
+
+
+  # def welcome_message
+  # puts " ▄█     █▄     ▄████████  ▄█        ▄████████  ▄██████▄     ▄▄▄▄███▄▄▄▄      ▄████████
+  #  ███     ███   ███    ███ ███       ███    ███ ███    ███  ▄██▀▀▀███▀▀▀██▄   ███    ███
+  #  ███     ███   ███    █▀  ███       ███    █▀  ███    ███  ███   ███   ███   ███    █▀
+  #  ███     ███  ▄███▄▄▄     ███       ███        ███    ███  ███   ███   ███  ▄███▄▄▄
+  #  ███     ███ ▀▀███▀▀▀     ███       ███        ███    ███  ███   ███   ███ ▀▀███▀▀▀
+  #  ███     ███   ███    █▄  ███       ███    █▄  ███    ███  ███   ███   ███   ███    █▄
+  #  ███ ▄█▄ ███   ███    ███ ███▌    ▄ ███    ███ ███    ███  ███   ███   ███   ███    ███
+  #  ▀███▀███▀    ██████████ █████▄▄██ ████████▀   ▀██████▀    ▀█   ███   █▀    ██████████
+  #                           ▀                                                             "
+  # end
 
   ####################
   # General
@@ -20,6 +44,11 @@ class CLI
     # Prompts the user for their username
     name = @prompt.ask("What is your name?")
     get_user(name)
+  end
+
+  def prompt_password
+    password = @prompt.mask("What is your password?")
+    get_user(password)
   end
 
   def get_user(name)
@@ -57,6 +86,7 @@ class CLI
     fetch_tasks()
 
     if arg == :view
+
       display_response(fetch_tasks())
     elsif arg == :add
       adds_task()
@@ -80,9 +110,13 @@ class CLI
   end
 
   def start
-    # Main controller
+
+    #Main controller
+    system "clear"
+    self.class.welcome_message()
     prompt_user()
-    welcome()
+    self.class.todo_app()
+    # self.class.welcome()
     ask_choice()
   end
 
